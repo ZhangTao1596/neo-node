@@ -32,4 +32,8 @@
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="4.5.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\neo\neo\neo.csproj" />
+  </ItemGroup>
+
 </Project>

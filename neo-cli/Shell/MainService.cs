@@ -100,9 +100,56 @@ namespace Neo.Shell
                     return OnInstallCommand(args);
                 case "uninstall":
                     return OnUnInstallCommand(args);
+                case "compare":
+                    return OnCompareCommand(args);
                 default:
                     return base.OnCommand(args);
             }
+        }
+
+        private bool OnCompareCommand(string[] args)
+        {
+            string rpc_url = args[1].ToLower();
+            string log_dictionary = Path.Combine(AppContext.BaseDirectory, "compare");
+            Directory.CreateDirectory(log_dictionary);
+            string path = Path.Combine(log_dictionary, $"compare.log");
+            var rpc_client = new RpcClient(rpc_url);
+            var storage = Blockchain.Singleton.GetSnapshot().Storages;
+
+
+            foreach (var item in storage.Find())
+            {
+                var script_hash = item.Key.ScriptHash;
+                var key = item.Key.Key;
+                JObject result;
+                string line;
+                int retry_count = 3;
+            Loop:
+                try
+                {
+                    result = rpc_client.RpcSend("getstorage", script_hash.ToString(), key.ToHexString());
+                    if (result["result"].AsString() == item.Value.Value.ToHexString())
+                    {
+                        line = $"Pass. script_hash={script_hash} key={key.ToHexString()} value={item.Value.Value.ToHexString()}";
+                    }
+                    else
+                    {
+                        line = $"Failed. script_hash={script_hash} key={key.ToHexString()} local_value={item.Value.Value.ToHexString()} remote_value={result["result"].AsString()}";
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                    if (retry_count < 0)
+                        return true;
+                    else
+                    {
+                        goto Loop;
+                    }
+                }
+                File.AppendAllLines(path, new[] { line });
+            }
+            return true;
         }
 
         private bool OnBroadcastCommand(string[] args)
