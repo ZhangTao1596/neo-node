@@ -116,25 +116,24 @@ namespace Neo.Shell
             var rpc_client = new RpcClient(rpc_url);
             var storage = Blockchain.Singleton.GetSnapshot().Storages;
 
-
             foreach (var item in storage.Find())
             {
-                var script_hash = item.Key.ScriptHash;
-                var key = item.Key.Key;
+                var script_hash = item.Key.ScriptHash.ToString();
+                var key = item.Key.Key.ToHexString();
                 JObject result;
                 string line;
                 int retry_count = 3;
             Loop:
                 try
                 {
-                    result = rpc_client.RpcSend("getstorage", script_hash.ToString(), key.ToHexString());
-                    if (result["result"].AsString() == item.Value.Value.ToHexString())
+                    result = rpc_client.RpcSend("getstorage", script_hash, key);
+                    if (result?.AsString() == item.Value.Value.ToHexString())
                     {
-                        line = $"Pass. script_hash={script_hash} key={key.ToHexString()} value={item.Value.Value.ToHexString()}";
+                        line = $"Pass. script_hash={script_hash} key={key} local_value={item.Value.Value.ToHexString()} remote_value={result?.AsString()}";
                     }
                     else
                     {
-                        line = $"Failed. script_hash={script_hash} key={key.ToHexString()} local_value={item.Value.Value.ToHexString()} remote_value={result["result"].AsString()}";
+                        line = $"Failed. script_hash={script_hash} key={key} local_value={item.Value.Value.ToHexString()} remote_value={result?.AsString()}";
                     }
                 }
                 catch (Exception e)
@@ -144,9 +143,11 @@ namespace Neo.Shell
                         return true;
                     else
                     {
+                        retry_count--;
                         goto Loop;
                     }
                 }
+                Console.WriteLine(line);
                 File.AppendAllLines(path, new[] { line });
             }
             return true;
